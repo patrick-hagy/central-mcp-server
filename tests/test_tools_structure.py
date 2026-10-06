@@ -24,7 +24,10 @@ SURVIVING_TOOLS = {
     "central_run_network_test",
     "central_run_show_commands",
     "central_bounce_port",
+    "central_get_config",
 }
+
+CONFIG_WRITE_TOOLS = {"central_write_config"}
 
 REMOVED_TOOLS = {
     "central_get_aps",
@@ -90,8 +93,9 @@ def test_tools_do_not_use_nested_try_except_blocks() -> None:
 def test_server_registers_exact_folded_tool_surface(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The 0.2.0 server exposes exactly the 13 folded tools, with no aliases."""
+    """The default server exposes exactly the folded tools, with no aliases."""
     monkeypatch.setenv("DYNAMIC_TOOLS", "false")
+    monkeypatch.delenv("ENABLE_CONFIG_WRITES", raising=False)
     importlib.reload(config)
     static_server = importlib.reload(server)
     registered = {
@@ -101,6 +105,28 @@ def test_server_registers_exact_folded_tool_surface(
 
     assert registered == SURVIVING_TOOLS
     assert registered.isdisjoint(REMOVED_TOOLS)
+    assert registered.isdisjoint(CONFIG_WRITE_TOOLS)
+
+
+def test_server_registers_config_write_tool_only_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ENABLE_CONFIG_WRITES=true adds the confirmation-gated config write tool."""
+    monkeypatch.setenv("DYNAMIC_TOOLS", "false")
+    monkeypatch.setenv("ENABLE_CONFIG_WRITES", "true")
+    try:
+        importlib.reload(config)
+        write_server = importlib.reload(server)
+        registered = {
+            tool.name
+            for tool in asyncio.run(write_server.mcp.list_tools(run_middleware=False))
+        }
+    finally:
+        monkeypatch.delenv("ENABLE_CONFIG_WRITES")
+        importlib.reload(config)
+        importlib.reload(server)
+
+    assert registered == SURVIVING_TOOLS | CONFIG_WRITE_TOOLS
 
 
 def test_removed_tools_are_not_referenced_by_server_guidance() -> None:

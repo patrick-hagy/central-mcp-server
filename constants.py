@@ -17,6 +17,26 @@ TROUBLESHOOTING_POLL_INTERVAL = 15  # Default seconds between polls
 BOUNCE_PORTS_MAX = 5  # Max ports per bounce call
 SHOW_COMMANDS_MAX = 5  # Max show commands per central_run_show_commands call
 
+# --- Configuration (network-config) ---
+CONFIG_API_PREFIX = "network-config/v1alpha1/"
+CONFIG_PREVIEW_MAX_CHARS = (
+    4000  # Max JSON chars per block in a write confirmation prompt
+)
+CONFIG_PERSONA = Literal[
+    "SERVICE_PERSONA",
+    "HYBRID_NAC",
+    "CORE_SWITCH",
+    "BRIDGE",
+    "CAMPUS_AP",
+    "IOT",
+    "MOBILITY_GW",
+    "AGG_SWITCH",
+    "BRANCH_GW",
+    "VPNC",
+    "ACCESS_SWITCH",
+    "MICROBRANCH_AP",
+]
+
 TIME_RANGE = Literal[
     "last_1h", "last_6h", "last_24h", "last_7d", "last_30d", "today", "yesterday"
 ]
