@@ -84,12 +84,12 @@ OAuth credentials created through the HPE GreenLake Platform:
 Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) if you haven't already. It's the only prerequisite.
 
 **Using an MCP client (Claude Desktop, Claude Code, GitHub Copilot)?**
-No install command needed. Jump to [MCP Client Configuration](#mcp-client-configuration), the client fetches and runs the server automatically via `uvx`.
+No install command needed. Jump to [MCP Client Configuration](#mcp-client-configuration), the client fetches the server from this GitHub repository and runs it automatically via `uvx`.
 
 **Want the server as a persistent CLI tool on your PATH?**
 
 ```bash
-uv tool install --prerelease=allow central-mcp-server
+uv tool install --prerelease=allow git+https://github.com/patrick-hagy/central-mcp-server
 ```
 
 > `--prerelease=allow` is required because this server depends on `pycentral`, which currently only has a pre-release version on PyPI. uv skips pre-releases by default.
@@ -121,7 +121,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   "mcpServers": {
     "central-mcp": {
       "command": "uvx",
-      "args": ["--prerelease=allow", "central-mcp-server"],
+      "args": ["--prerelease=allow", "--from", "git+https://github.com/patrick-hagy/central-mcp-server", "central-mcp-server"],
       "env": {
         "CENTRAL_BASE_URL": "your-central-base-url",
         "CENTRAL_CLIENT_ID": "your-client-id",
@@ -141,7 +141,7 @@ claude mcp add central-mcp \
   -e CENTRAL_BASE_URL=your-central-base-url \
   -e CENTRAL_CLIENT_ID=your-client-id \
   -e CENTRAL_CLIENT_SECRET=your-client-secret \
-  -- uvx --prerelease=allow central-mcp-server
+  -- uvx --prerelease=allow --from git+https://github.com/patrick-hagy/central-mcp-server central-mcp-server
 ```
 
 See the [Claude Code setup guide](https://developer.arubanetworks.com/new-central/docs/central-mcp-claude-code-setup) for full steps and troubleshooting.
@@ -156,7 +156,7 @@ Add `.vscode/mcp.json` to your workspace root and add that path to `.gitignore` 
     "central-mcp": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--prerelease=allow", "central-mcp-server"],
+      "args": ["--prerelease=allow", "--from", "git+https://github.com/patrick-hagy/central-mcp-server", "central-mcp-server"],
       "env": {
         "CENTRAL_BASE_URL": "your-central-base-url",
         "CENTRAL_CLIENT_ID": "your-client-id",
@@ -181,7 +181,7 @@ By default the server runs over `stdio`, which is the right choice for most MCP 
 **Step 1 — Install the server as a CLI tool** (if you haven't already):
 
 ```bash
-uv tool install --prerelease=allow central-mcp-server
+uv tool install --prerelease=allow git+https://github.com/patrick-hagy/central-mcp-server
 ```
 
 > `--prerelease=allow` is required because this server depends on `pycentral`, which currently only has a pre-release version on PyPI.
@@ -361,7 +361,7 @@ The server includes 12 built-in prompts to help AI assistants run common workflo
 ## Dev Setup
 
 ```bash
-git clone <Github Server URL>
+git clone https://github.com/patrick-hagy/central-mcp-server.git
 cd central-mcp-server
 ```
 

@@ -25,8 +25,8 @@ dependencies = [
 
 [project.urls]
 Documentation = "https://developer.arubanetworks.com/new-central/docs/central-mcp-overview"
-Repository = "https://github.com/KarthikSKumar98/central-mcp-server"
-Issues = "https://github.com/KarthikSKumar98/central-mcp-server/issues"
+Repository = "https://github.com/patrick-hagy/central-mcp-server"
+Issues = "https://github.com/patrick-hagy/central-mcp-server/issues"
 
 [project.scripts]
 central-mcp-server = "server:run"
