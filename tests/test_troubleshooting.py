@@ -8,6 +8,7 @@ from mcp.server.elicitation import CancelledElicitation, DeclinedElicitation
 from mcp.types import ErrorData
 
 import tools.troubleshooting as mod
+from constants import API_CONCURRENCY_LIMIT
 from models import CentralError, TroubleshootingResult
 from tests.conftest import FakeMCP, make_ctx
 
@@ -1013,6 +1014,37 @@ async def test_bounce_port_gateway_success(tools):
     assert result.status == "COMPLETED"
     mock_init.assert_called_once()
     assert mock_init.call_args.kwargs["device_type"] == "gateways"
+
+
+@pytest.mark.asyncio
+async def test_confirmation_does_not_hold_api_slot(tools):
+    ctx = make_ctx()
+    semaphore = ctx.lifespan_context["api_semaphore"]
+    free_slots_during_prompt = []
+    free_slots_during_initiate = []
+
+    async def elicit(*_args, **_kwargs):
+        free_slots_during_prompt.append(semaphore._value)
+        return AcceptedElicitation(data={})
+
+    def initiate(*_args, **_kwargs):
+        free_slots_during_initiate.append(semaphore._value)
+        return {"location": "/tasks/T001"}
+
+    ctx.elicit = elicit
+    with _patch_inventory(RAW_CX), \
+         patch("utils.troubleshooting.MonitoringSwitches.get_switch_interfaces", return_value=_IFACE_RESPONSE), \
+         patch("utils.troubleshooting.Troubleshooting.initiate_port_bounce_test", side_effect=initiate), \
+         patch("utils.troubleshooting.Troubleshooting.get_port_bounce_test_result", return_value=_BOUNCE_COMPLETED), \
+         patch("asyncio.sleep"):
+        await tools["central_bounce_port"](
+            ctx, serial_number="SW001", ports=["1/1/1"], bounce_type="port",
+            max_attempts=1, poll_interval=1
+        )
+
+    assert free_slots_during_prompt == [API_CONCURRENCY_LIMIT]
+    assert free_slots_during_initiate == [API_CONCURRENCY_LIMIT - 1]
+    assert semaphore._value == API_CONCURRENCY_LIMIT
 
 
 # --- PoE fields in approval message ---

@@ -506,63 +506,65 @@ async def _bounce_port_impl(
         except Exception as exc:
             raise_central_error(exc, "fetching interface list")
 
-        matched, unknown = select_interfaces_for_ports(interfaces, ports)
-        if unknown:
-            raise_central_error(
-                ValueError(
-                    f"Unknown ports: {unknown}. "
-                    f"Available ports on this device: "
-                    f"{[i.get('name') for i in interfaces]}"
-                ),
-                "validating ports",
-            )
-
-        if bounce_type == "poe":
-            warning = (
-                "WARNING: This will cut PoE power to the listed ports for several "
-                "seconds. Any powered device (AP, phone, camera) will lose power "
-                "and reboot."
-            )
-        else:
-            warning = (
-                "WARNING: This will drop the link on the listed ports for several "
-                "seconds. Any connected device or client will lose connectivity "
-                "during that time."
-            )
-        lines = [
-            f"Confirm {bounce_type.upper()} BOUNCE on device "
-            f"{serial_number} ({family})",
-            warning,
-            f"The following {len(matched)} port(s) will be affected:\n",
-        ]
-        lines.extend(
-            _format_port_lines(
-                matched,
-                family,
-                include_poe=(bounce_type == "poe"),
-            )
-        )
-        lines.append("\nAccept to proceed. Decline or cancel to abort.")
-        approval_msg = "\n".join(lines)
-
-        elicit_result = await ctx.elicit(approval_msg, response_type=None)
-        if not isinstance(elicit_result, AcceptedElicitation):
-            raise_central_error(
-                ValueError("Bounce was declined or cancelled by the user."),
-                f"running {bounce_type} bounce",
-            )
-
-        initiate_name = (
-            "initiate_port_bounce_test"
-            if bounce_type == "port"
-            else "initiate_poe_bounce_test"
-        )
-        get_result_name = (
-            "get_port_bounce_test_result"
-            if bounce_type == "port"
-            else "get_poe_bounce_test_result"
+    matched, unknown = select_interfaces_for_ports(interfaces, ports)
+    if unknown:
+        raise_central_error(
+            ValueError(
+                f"Unknown ports: {unknown}. "
+                f"Available ports on this device: "
+                f"{[i.get('name') for i in interfaces]}"
+            ),
+            "validating ports",
         )
 
+    if bounce_type == "poe":
+        warning = (
+            "WARNING: This will cut PoE power to the listed ports for several "
+            "seconds. Any powered device (AP, phone, camera) will lose power "
+            "and reboot."
+        )
+    else:
+        warning = (
+            "WARNING: This will drop the link on the listed ports for several "
+            "seconds. Any connected device or client will lose connectivity "
+            "during that time."
+        )
+    lines = [
+        f"Confirm {bounce_type.upper()} BOUNCE on device {serial_number} ({family})",
+        warning,
+        f"The following {len(matched)} port(s) will be affected:\n",
+    ]
+    lines.extend(
+        _format_port_lines(
+            matched,
+            family,
+            include_poe=(bounce_type == "poe"),
+        )
+    )
+    lines.append("\nAccept to proceed. Decline or cancel to abort.")
+    approval_msg = "\n".join(lines)
+
+    # Prompt outside api_context so a pending confirmation does not hold an
+    # API concurrency slot while waiting on the user.
+    elicit_result = await ctx.elicit(approval_msg, response_type=None)
+    if not isinstance(elicit_result, AcceptedElicitation):
+        raise_central_error(
+            ValueError("Bounce was declined or cancelled by the user."),
+            f"running {bounce_type} bounce",
+        )
+
+    initiate_name = (
+        "initiate_port_bounce_test"
+        if bounce_type == "port"
+        else "initiate_poe_bounce_test"
+    )
+    get_result_name = (
+        "get_port_bounce_test_result"
+        if bounce_type == "port"
+        else "get_poe_bounce_test_result"
+    )
+
+    async with api_context(ctx) as conn:
         try:
             return await run_async_test(
                 conn=conn,
