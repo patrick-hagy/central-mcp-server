@@ -74,7 +74,7 @@ Live diagnostics executed on Central-managed devices.
 
 - `central_run_network_test` — run a network diagnostic test (e.g. ping) from a device.
 - `central_run_show_commands` — run show commands on a device and return the output.
-- `central_bounce_port` — bounce ports or toggle PoE. **The only state-changing tool**; always requires your explicit confirmation.
+- `central_bounce_port` — bounce ports or toggle PoE. **Changes device state**; always requires your explicit confirmation.
 
 ### Configuration
 

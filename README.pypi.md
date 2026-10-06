@@ -19,7 +19,7 @@ Community MCP server for HPE Aruba Networking Central. This exposes your Central
 
 ## Overview
 
-`central-mcp-server` wraps Central REST APIs and exposes them as [MCP (Model Context Protocol)](https://modelcontextprotocol.io) tools — **14 MCP tools** across inventory, monitoring, events, alerts, troubleshooting, and configuration. Once configured, AI assistants like Claude or GitHub Copilot can answer questions like:
+`central-mcp-server` wraps Central REST APIs and exposes them as [MCP (Model Context Protocol)](https://modelcontextprotocol.io) tools — **13 MCP tools** (14 with configuration writes enabled) across inventory, monitoring, events, alerts, troubleshooting, and configuration. Once configured, AI assistants like Claude or GitHub Copilot can answer questions like:
 
 - *"Which sites have poor health scores right now?"*
 - *"Show me all failed wireless clients at HQ in the last 24 hours."*

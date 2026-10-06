@@ -6,7 +6,7 @@ from fastmcp.server.elicitation import AcceptedElicitation
 from mcp.server.elicitation import CancelledElicitation, DeclinedElicitation
 
 import tools.configuration as mod
-from constants import CONFIG_PREVIEW_MAX_CHARS
+from constants import API_CONCURRENCY_LIMIT, CONFIG_PREVIEW_MAX_CHARS
 from models import CentralError, ConfigEnvelope, ConfigWriteResult
 from tests.conftest import FakeMCP, make_ctx
 
@@ -239,6 +239,26 @@ async def test_update_shows_current_and_body_then_patches(tools):
         status_code=200,
         response={"message": "ok"},
     )
+
+
+async def test_confirmation_does_not_hold_api_slot(tools):
+    ctx = make_ctx()
+    semaphore = ctx.lifespan_context["api_semaphore"]
+    free_slots_during_prompt = []
+
+    async def elicit(*_args, **_kwargs):
+        free_slots_during_prompt.append(semaphore._value)
+        return AcceptedElicitation(data={})
+
+    ctx.elicit = elicit
+    _conn(ctx).command.side_effect = [_resp(200, VLAN_10), _resp(200, {})]
+
+    await tools["central_write_config"](
+        ctx, action="update", resource="layer2-vlan", name="10", config={"name": "x"}
+    )
+
+    assert free_slots_during_prompt == [API_CONCURRENCY_LIMIT]
+    assert semaphore._value == API_CONCURRENCY_LIMIT
 
 
 async def test_create_posts_without_prefetch(tools):

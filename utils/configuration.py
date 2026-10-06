@@ -72,6 +72,7 @@ def strip_metadata(payload: Any) -> Any:
 
 
 def _as_object(value: Any) -> dict[str, Any]:
+    """Wrap a non-object list entry so every envelope item is a JSON object."""
     return value if isinstance(value, dict) else {"value": value}
 
 

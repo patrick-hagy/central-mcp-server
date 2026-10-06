@@ -80,43 +80,44 @@ async def _write_config_impl(
     path = build_config_path(resource, name)
     method = WRITE_METHODS[action]
 
-    async with api_context(ctx) as conn:
-        current = None
-        current_found: bool | None = None
-        if name is not None and action != "create":
+    current = None
+    current_found: bool | None = None
+    if name is not None and action != "create":
+        async with api_context(ctx) as conn:
             response = await asyncio.to_thread(
                 conn.command,
                 api_method="GET",
                 api_path=path,
                 api_params=read_params(local),
             )
-            if response.get("code") == 404:
-                current_found = False
-            else:
-                current = strip_metadata(ensure_success(response))
-                current_found = True
-            if action == "delete" and not current_found:
-                raise ValueError(f"Nothing to delete: {path} was not found in Central.")
+        if response.get("code") == 404:
+            current_found = False
+        else:
+            current = strip_metadata(ensure_success(response))
+            current_found = True
+        if action == "delete" and not current_found:
+            raise ValueError(f"Nothing to delete: {path} was not found in Central.")
 
-        approval_msg = build_confirmation(
-            action, method, path, local, current, current_found, config
-        )
-        elicit_result = await ctx.elicit(approval_msg, response_type=None)
-        if not isinstance(elicit_result, AcceptedElicitation):
-            raise ValueError(
-                "Configuration write was declined or cancelled by the user."
-            )
+    # Wait for confirmation outside api_context so a pending prompt does not
+    # hold a shared API concurrency slot.
+    approval_msg = build_confirmation(
+        action, method, path, local, current, current_found, config
+    )
+    elicit_result = await ctx.elicit(approval_msg, response_type=None)
+    if not isinstance(elicit_result, AcceptedElicitation):
+        raise ValueError("Configuration write was declined or cancelled by the user.")
 
-        command_kwargs: dict[str, Any] = {
-            "api_method": method,
-            "api_path": path,
-            "api_params": local,
-        }
-        if config:
-            command_kwargs["api_data"] = config
-        elif method == "DELETE":
-            # Central's profile DELETE returns no JSON body.
-            command_kwargs["headers"] = {"Accept": "*/*"}
+    command_kwargs: dict[str, Any] = {
+        "api_method": method,
+        "api_path": path,
+        "api_params": local,
+    }
+    if config:
+        command_kwargs["api_data"] = config
+    elif method == "DELETE":
+        # Central's profile DELETE returns no JSON body.
+        command_kwargs["headers"] = {"Accept": "*/*"}
+    async with api_context(ctx) as conn:
         response = await asyncio.to_thread(conn.command, **command_kwargs)
 
     body = ensure_success(response)
