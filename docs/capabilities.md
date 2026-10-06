@@ -25,9 +25,11 @@ family they call. For real example questions per area, see
 | [Events](#events) | Event records and facets for a site, device, or client | 1 | Network Troubleshooting |
 | [Gateway clusters](#gateway-clusters) | Cluster health, resources, and capacity | 1 | Network Monitoring |
 | [Live troubleshooting](#live-troubleshooting) | Ping/traceroute-style tests, show commands, port bounce | 3 | Network Troubleshooting |
+| [Configuration](#configuration) | Read configuration profiles; optional write-back | 2 | Network Configuration |
 
-**13 tools total.** All tools are read-only except `central_bounce_port`, which changes device
-state and always asks for your confirmation first.
+**14 tools total** (13 by default; `central_write_config` is opt-in). All tools are read-only
+except `central_bounce_port` and `central_write_config`, which change device or configuration
+state and always ask for your confirmation first.
 
 ## Categories
 
@@ -72,12 +74,19 @@ Live diagnostics executed on Central-managed devices.
 
 - `central_run_network_test` — run a network diagnostic test (e.g. ping) from a device.
 - `central_run_show_commands` — run show commands on a device and return the output.
-- `central_bounce_port` — bounce ports or toggle PoE. **The only state-changing tool**; always requires your explicit confirmation.
+- `central_bounce_port` — bounce ports or toggle PoE. **Changes device state**; always requires your explicit confirmation.
+
+### Configuration
+
+Central configuration profiles from the `network-config/v1alpha1` API.
+
+- `central_get_config` — read any configuration resource (e.g. `layer2-vlan`, `wlan-ssids`, `scope-maps`), a whole collection or one profile by `name`; pass `scope_id` + `persona` for a scope-level (local) profile.
+- `central_write_config` — create, update, replace, or delete a profile. **Opt-in** with `ENABLE_CONFIG_WRITES=true`; shows the current config and request body and always requires your explicit confirmation.
 
 ## Scope & limitations
 
-- **New Central only.** The server targets the new HPE Aruba Networking Central REST APIs (`network-monitoring/v1`, `network-notifications/v1`, `network-troubleshooting/v1`). Classic Central APIs are not supported.
-- **Monitoring, not configuration.** The server reads live network state. It does not create, modify, or delete Central configuration (the single exception is port bouncing, above).
+- **New Central only.** The server targets the new HPE Aruba Networking Central REST APIs (`network-monitoring/v1`, `network-notifications/v1`, `network-troubleshooting/v1`, `network-config/v1alpha1`). Classic Central APIs are not supported.
+- **Configuration writes are opt-in.** By default the server only reads configuration. Writes require `ENABLE_CONFIG_WRITES=true` plus confirmation of every change, and use Central's preview `v1alpha1` configuration API.
 - **Live data.** Every answer reflects your Central instance at query time; nothing is cached or stored.
 
 Capability coverage grows with each release — see the [CHANGELOG](../CHANGELOG.md) for what each version added.

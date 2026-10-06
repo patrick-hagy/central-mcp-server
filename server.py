@@ -6,13 +6,20 @@ from fastmcp import FastMCP
 from fastmcp.experimental.transforms.code_mode import CodeMode
 
 import prompts
-from config import DYNAMIC_TOOLS, MCP_HOST, MCP_PORT, MCP_TRANSPORT
+from config import (
+    DYNAMIC_TOOLS,
+    ENABLE_CONFIG_WRITES,
+    MCP_HOST,
+    MCP_PORT,
+    MCP_TRANSPORT,
+)
 from constants import API_CONCURRENCY_LIMIT
 from services.central_service import get_conn, verify_connection
 from tools import (
     alerts,
     client_analytics,
     clients,
+    configuration,
     devices,
     events,
     gateway_monitoring,
@@ -62,6 +69,7 @@ events.register(mcp)
 gateway_monitoring.register(mcp)
 wlans.register(mcp)
 troubleshooting.register(mcp)
+configuration.register(mcp, enable_writes=ENABLE_CONFIG_WRITES)
 
 # Register prompts with the MCP server
 prompts.register(mcp)

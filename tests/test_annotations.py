@@ -8,6 +8,7 @@ from tools import (
     READ_ONLY,
     alerts,
     clients,
+    configuration,
     devices,
     events,
     gateway_monitoring,
@@ -26,6 +27,7 @@ READ_ONLY_TOOLS = {
     "central_get_gateway_cluster",
     "central_get_events",
     "central_get_alerts",
+    "central_get_config",
 }
 
 DIAGNOSTIC_TOOLS = {
@@ -33,7 +35,7 @@ DIAGNOSTIC_TOOLS = {
     "central_run_show_commands",
 }
 
-DESTRUCTIVE_TOOLS = {"central_bounce_port"}
+DESTRUCTIVE_TOOLS = {"central_bounce_port", "central_write_config"}
 
 
 def _registered_tools() -> dict[str, object]:
@@ -49,6 +51,7 @@ def _registered_tools() -> dict[str, object]:
         troubleshooting,
     ):
         module.register(mcp)
+    configuration.register(mcp, enable_writes=True)
     return {
         tool.name: tool
         for tool in asyncio.run(mcp.list_tools(run_middleware=False))

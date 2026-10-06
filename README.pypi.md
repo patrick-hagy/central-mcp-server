@@ -19,7 +19,7 @@ Community MCP server for HPE Aruba Networking Central. This exposes your Central
 
 ## Overview
 
-`central-mcp-server` wraps Central REST APIs and exposes them as [MCP (Model Context Protocol)](https://modelcontextprotocol.io) tools — **12 MCP tools** across inventory, monitoring, events, alerts, and troubleshooting. Once configured, AI assistants like Claude or GitHub Copilot can answer questions like:
+`central-mcp-server` wraps Central REST APIs and exposes them as [MCP (Model Context Protocol)](https://modelcontextprotocol.io) tools — **13 MCP tools** (14 with configuration writes enabled) across inventory, monitoring, events, alerts, troubleshooting, and configuration. Once configured, AI assistants like Claude or GitHub Copilot can answer questions like:
 
 - *"Which sites have poor health scores right now?"*
 - *"Show me all failed wireless clients at HQ in the last 24 hours."*
@@ -89,6 +89,16 @@ Replace the placeholder values with your actual credentials in all examples belo
 - Variable name is strict: use `DYNAMIC_TOOLS` (plural). `DYNAMIC_TOOL` is ignored.
 
 When enabled, the server starts with `CodeMode()` and exposes Code Mode meta-tools to the client. When disabled, the server runs without the transform and exposes the normal registered tool catalog directly. Recommended to use `CodeMode()` when you have multiple MCP servers running to preserve your context window.
+
+#### Optional: Configuration Write-Back (`ENABLE_CONFIG_WRITES`)
+
+`central_get_config` (read-only) is always available and lets the assistant pull Central configuration profiles (VLANs, SSIDs, scope maps, and any other `network-config/v1alpha1` resource) into the conversation.
+
+`central_write_config` writes configuration back to Central and is **off by default**. To enable it, add `ENABLE_CONFIG_WRITES=true` to the server's environment (the `env` block of your MCP client config, or `.env`). When enabled:
+
+- Every create, update, replace, or delete shows the current configuration and the exact request body in a confirmation prompt; nothing is sent to Central until you accept. Your MCP client must support elicitation.
+- The API client needs write permission for Central configuration.
+- Changes apply to live configuration and may re-provision devices. Test in a lab first.
 
 #### Claude Desktop
 
@@ -231,6 +241,8 @@ Once connected, you can ask your AI assistant questions like:
 - *"Ping 8.8.8.8 from switch SW-CORE-01."*
 - *"Run 'show version' and 'show interfaces brief' on switch SG43KN5017."*
 - *"Bounce PoE on port 1/1/6 of switch SG43KN5017."*
+- *"Show me the VLAN profiles configured in Central."*
+- *"Change the description on VLAN 10 to 'Staff'."* (requires `ENABLE_CONFIG_WRITES=true`)
 
 See [Central MCP Server in Action]((https://developer.arubanetworks.com/new-central/docs/central-mcp-in-action)) for real query examples across all supported clients.
 
@@ -240,7 +252,7 @@ New to driving an AI assistant over your network? See **[What You Can Ask](https
 
 ### Tools
 
-The 0.2.x surface folds related operations into 13 tools. Envelope-returning reads default to `response_format="concise"`; use `"detailed"` for full item fields.
+The 0.2.x surface folds related operations into 14 tools (13 plus `central_write_config` when `ENABLE_CONFIG_WRITES=true`). Envelope-returning reads default to `response_format="concise"`; use `"detailed"` for full item fields.
 
 | Tool | Description |
 |------|-------------|
@@ -257,6 +269,8 @@ The 0.2.x surface folds related operations into 13 tools. Envelope-returning rea
 | `central_run_network_test` | Run a live network diagnostic against a device. |
 | `central_run_show_commands` | Run validated show commands and return their output. |
 | `central_bounce_port` | Bounce ports or toggle PoE after explicit confirmation. |
+| `central_get_config` | Read configuration profiles, shared or scope-level. |
+| `central_write_config` | Write configuration back after explicit confirmation (opt-in: `ENABLE_CONFIG_WRITES=true`). |
 
 ### LLM Workflow for Events
 
