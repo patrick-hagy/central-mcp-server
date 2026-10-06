@@ -14,6 +14,8 @@ CENTRAL_BASE_URL = os.getenv("CENTRAL_BASE_URL", "")
 CENTRAL_CLIENT_ID = os.getenv("CENTRAL_CLIENT_ID", "")
 CENTRAL_CLIENT_SECRET = os.getenv("CENTRAL_CLIENT_SECRET", "")
 DYNAMIC_TOOLS = os.getenv("DYNAMIC_TOOLS", "false").lower() == "true"
+# Opt-in gate for central_write_config; when false only read access to configuration is exposed.
+ENABLE_CONFIG_WRITES = os.getenv("ENABLE_CONFIG_WRITES", "false").lower() == "true"
 
 MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")
 MCP_HOST = os.getenv("MCP_HOST", "127.0.0.1")

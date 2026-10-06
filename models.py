@@ -1195,6 +1195,38 @@ class EventEnvelope(CentralEnvelope):
     items: list[Event] = Field(description="Central event records.")
 
 
+class ConfigEnvelope(CentralEnvelope):
+    """Typed response envelope for configuration profile reads."""
+
+    items: list[dict[str, Any]] = Field(
+        description="Configuration objects exactly as Central returns them (metadata removed)."
+    )
+    resource: str | None = Field(
+        default=None,
+        description="Configuration resource path under network-config/v1alpha1/.",
+    )
+    bulk_key: str | None = Field(
+        default=None,
+        description="Top-level key Central wrapped the list in, when the read returned a collection.",
+    )
+
+
+class ConfigWriteResult(BaseModel):
+    """Outcome of a confirmed configuration write sent to Central."""
+
+    action: Literal["create", "update", "replace", "delete"] = Field(
+        description="Requested write action."
+    )
+    method: Literal["POST", "PATCH", "PUT", "DELETE"] = Field(
+        description="HTTP method sent to Central."
+    )
+    path: str = Field(description="API path that was written, excluding base URL.")
+    status_code: int = Field(description="HTTP status code returned by Central.")
+    response: Any = Field(
+        default=None, description="Response body returned by Central, if any."
+    )
+
+
 class TroubleshootingResult(BaseModel):
     """Result of an async troubleshooting task run against a Central-managed device."""
 
