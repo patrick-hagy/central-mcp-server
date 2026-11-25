@@ -275,6 +275,7 @@ def get_supported_families(test_type: str) -> list[str]:
 def validate_show_commands_against_catalog(
     requested: list[str],
     catalog: Any,
+    allow_port_placeholder: bool = False,
 ) -> list[str]:
     """Return unmatched commands given a catalog response from list_show_commands.
 
@@ -284,6 +285,8 @@ def validate_show_commands_against_catalog(
     Args:
         requested: Commands the user wants to run.
         catalog: Raw response from Troubleshooting.list_show_commands.
+        allow_port_placeholder: Accept a literal ``{{port}}`` token. Only set
+            this when the caller substitutes it before execution (AOS-S).
 
     Returns:
         List of requested commands that did not match any catalog entry.
@@ -301,9 +304,10 @@ def validate_show_commands_against_catalog(
     unmatched = []
     for cmd in requested:
         normalised = " ".join(cmd.lower().split())
-        unsafe = re.search(r"[;|&\n]", cmd) or "{{" in normalised.replace(
-            "{{port}}", ""
+        leftover = (
+            normalised.replace("{{port}}", "") if allow_port_placeholder else normalised
         )
+        unsafe = re.search(r"[;|&\r\n]", cmd) or "{{" in leftover
         if unsafe or not any(p.fullmatch(normalised) for p in patterns):
             unmatched.append(cmd)
     return unmatched

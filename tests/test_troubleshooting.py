@@ -1602,8 +1602,14 @@ def test_catalog_template_matches(cmd):
         "show ap arm x | y",
         "show ap arm x && y",
         "show log a\nreboot",
+        "show ap arm history\rreboot",
         "show ap arm {{option}}",  # leftover template
     ],
 )
 def test_catalog_template_rejects(cmd):
     assert _validate([cmd], _TMPL) == [cmd]
+
+
+def test_catalog_port_placeholder_only_when_substituted():
+    assert _validate(["show ap arm {{port}}"], _TMPL) == ["show ap arm {{port}}"]
+    assert _validate(["show ap arm {{port}}"], _TMPL, allow_port_placeholder=True) == []

@@ -414,7 +414,9 @@ async def _run_show_commands_impl(
         except Exception as exc:
             raise_central_error(exc, "fetching supported show commands")
 
-        unmatched = validate_show_commands_against_catalog(commands, catalog)
+        unmatched = validate_show_commands_against_catalog(
+            commands, catalog, allow_port_placeholder=family == "aos-s"
+        )
         if unmatched:
             raise_central_error(
                 ValueError(
