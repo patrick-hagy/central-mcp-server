@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import Literal
 
 from fastmcp import Context, FastMCP
@@ -231,14 +232,20 @@ def _build_initiate_kwargs(
     return {"destination": destination}
 
 
+_PORT_TOKEN = re.compile(r"\{\{port\}\}", re.IGNORECASE)
+
+
 async def _substitute_aoss_port_placeholders(
     conn: object,
     family: str,
     serial_number: str,
     commands: list[str],
 ) -> list[str]:
-    """Replace AOS-S catalog ``{{port}}`` tokens with a live interface name."""
-    if family != "aos-s" or not any("{{port}}" in command for command in commands):
+    """Replace AOS-S catalog ``{{port}}`` tokens with a live interface name.
+
+    Matching is case-insensitive, like catalog validation.
+    """
+    if family != "aos-s" or not any(_PORT_TOKEN.search(c) for c in commands):
         return commands
 
     interfaces = await fetch_device_interfaces(conn, family, serial_number)
@@ -251,7 +258,7 @@ async def _substitute_aoss_port_placeholders(
             "AOS-S show-command templates containing '{{port}}' require at least "
             "one reported interface."
         )
-    return [command.replace("{{port}}", port_name) for command in commands]
+    return [_PORT_TOKEN.sub(lambda _: port_name, command) for command in commands]
 
 
 async def _run_network_test_impl(

@@ -817,6 +817,28 @@ async def test_show_commands_substitutes_aoss_port_placeholder(tools):
     assert mock_init.call_args.kwargs["commands"] == ["show loop-protect 1/1/1"]
 
 
+@pytest.mark.asyncio
+async def test_show_commands_substitutes_uppercase_aoss_port_placeholder(tools):
+    ctx = make_ctx()
+    catalog = [{"command": "show loop-protect {{port}}"}]
+    interfaces = {"items": [{"name": "1/1/1"}]}
+    with _patch_inventory(RAW_AOSS), \
+         patch("utils.troubleshooting.Troubleshooting.list_show_commands", return_value=catalog), \
+         patch("utils.troubleshooting.MonitoringSwitches.get_switch_interfaces", return_value=interfaces), \
+         patch("utils.troubleshooting.Troubleshooting.initiate_show_commands", return_value={"location": "/tasks/T001"}) as mock_init, \
+         patch("utils.troubleshooting.Troubleshooting.get_show_commands_result", return_value={"status": "COMPLETED", "result": {"output": "ok"}}), \
+         patch("asyncio.sleep"):
+        await tools["central_run_show_commands"](
+            ctx,
+            serial_number="SW002",
+            commands=["show loop-protect {{PORT}}"],
+            max_attempts=1,
+            poll_interval=1,
+        )
+
+    assert mock_init.call_args.kwargs["commands"] == ["show loop-protect 1/1/1"]
+
+
 # ---------------------------------------------------------------------------
 # central_run_show_commands — show commands exception
 # ---------------------------------------------------------------------------
