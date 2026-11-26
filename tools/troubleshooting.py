@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import Literal
 
 from fastmcp import Context, FastMCP
@@ -19,6 +20,7 @@ from utils.common import api_context
 from utils.envelope import raise_central_error
 from utils.troubleshooting import (
     NETWORK_TEST_DISPATCH,
+    closest_catalog_commands,
     fetch_device_interfaces,
     format_port_speed,
     get_supported_families,
@@ -230,14 +232,20 @@ def _build_initiate_kwargs(
     return {"destination": destination}
 
 
+_PORT_TOKEN = re.compile(r"\{\{port\}\}", re.IGNORECASE)
+
+
 async def _substitute_aoss_port_placeholders(
     conn: object,
     family: str,
     serial_number: str,
     commands: list[str],
 ) -> list[str]:
-    """Replace AOS-S catalog ``{{port}}`` tokens with a live interface name."""
-    if family != "aos-s" or not any("{{port}}" in command for command in commands):
+    """Replace AOS-S catalog ``{{port}}`` tokens with a live interface name.
+
+    Matching is case-insensitive, like catalog validation.
+    """
+    if family != "aos-s" or not any(_PORT_TOKEN.search(c) for c in commands):
         return commands
 
     interfaces = await fetch_device_interfaces(conn, family, serial_number)
@@ -250,7 +258,7 @@ async def _substitute_aoss_port_placeholders(
             "AOS-S show-command templates containing '{{port}}' require at least "
             "one reported interface."
         )
-    return [command.replace("{{port}}", port_name) for command in commands]
+    return [_PORT_TOKEN.sub(lambda _: port_name, command) for command in commands]
 
 
 async def _run_network_test_impl(
@@ -413,12 +421,14 @@ async def _run_show_commands_impl(
         except Exception as exc:
             raise_central_error(exc, "fetching supported show commands")
 
-        unmatched = validate_show_commands_against_catalog(commands, catalog)
+        unmatched = validate_show_commands_against_catalog(
+            commands, catalog, allow_port_placeholder=family == "aos-s"
+        )
         if unmatched:
             raise_central_error(
                 ValueError(
                     f"Unsupported commands: {unmatched}. "
-                    f"Supported show commands for this device: {catalog}"
+                    f"Closest supported commands: {closest_catalog_commands(commands, catalog)}"
                 ),
                 "validating show commands",
             )

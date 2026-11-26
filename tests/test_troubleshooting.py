@@ -817,6 +817,28 @@ async def test_show_commands_substitutes_aoss_port_placeholder(tools):
     assert mock_init.call_args.kwargs["commands"] == ["show loop-protect 1/1/1"]
 
 
+@pytest.mark.asyncio
+async def test_show_commands_substitutes_uppercase_aoss_port_placeholder(tools):
+    ctx = make_ctx()
+    catalog = [{"command": "show loop-protect {{port}}"}]
+    interfaces = {"items": [{"name": "1/1/1"}]}
+    with _patch_inventory(RAW_AOSS), \
+         patch("utils.troubleshooting.Troubleshooting.list_show_commands", return_value=catalog), \
+         patch("utils.troubleshooting.MonitoringSwitches.get_switch_interfaces", return_value=interfaces), \
+         patch("utils.troubleshooting.Troubleshooting.initiate_show_commands", return_value={"location": "/tasks/T001"}) as mock_init, \
+         patch("utils.troubleshooting.Troubleshooting.get_show_commands_result", return_value={"status": "COMPLETED", "result": {"output": "ok"}}), \
+         patch("asyncio.sleep"):
+        await tools["central_run_show_commands"](
+            ctx,
+            serial_number="SW002",
+            commands=["show loop-protect {{PORT}}"],
+            max_attempts=1,
+            poll_interval=1,
+        )
+
+    assert mock_init.call_args.kwargs["commands"] == ["show loop-protect 1/1/1"]
+
+
 # ---------------------------------------------------------------------------
 # central_run_show_commands — show commands exception
 # ---------------------------------------------------------------------------
@@ -1566,3 +1588,50 @@ def test_resolve_device_family_empty_model_raises_valueerror():
     """An empty model must raise ValueError (caught by the tool), not IndexError."""
     with pytest.raises(ValueError):
         resolve_device_family({**RAW_CX, "model": ""})
+
+
+# ---------------------------------------------------------------------------
+# validate_show_commands_against_catalog — template placeholders
+# ---------------------------------------------------------------------------
+
+from utils.troubleshooting import validate_show_commands_against_catalog as _validate  # noqa: E402
+
+_TMPL = ["show ap arm {{x}}", "show a {{x}} b {{y}} c", "show log {{n}}", "show version"]
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "show ap arm history",
+        "show a 1 b 2 c",
+        "show log last 50 lines",
+        "SHOW  AP   ARM  History",
+        "show version",
+    ],
+)
+def test_catalog_template_matches(cmd):
+    assert _validate([cmd], _TMPL) == []
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "foo ap arm history",  # wrong prefix
+        "show ap arm",  # missing value
+        "show a 1 2 b 3 c",  # extra tokens
+        "show version extra",
+        "show ap arm x; reboot",
+        "show ap arm x | y",
+        "show ap arm x && y",
+        "show log a\nreboot",
+        "show ap arm history\rreboot",
+        "show ap arm {{option}}",  # leftover template
+    ],
+)
+def test_catalog_template_rejects(cmd):
+    assert _validate([cmd], _TMPL) == [cmd]
+
+
+def test_catalog_port_placeholder_only_when_substituted():
+    assert _validate(["show ap arm {{port}}"], _TMPL) == ["show ap arm {{port}}"]
+    assert _validate(["show ap arm {{port}}"], _TMPL, allow_port_placeholder=True) == []

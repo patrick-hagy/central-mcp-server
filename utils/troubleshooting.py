@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import re
 from typing import Any
 
@@ -274,6 +275,7 @@ def get_supported_families(test_type: str) -> list[str]:
 def validate_show_commands_against_catalog(
     requested: list[str],
     catalog: Any,
+    allow_port_placeholder: bool = False,
 ) -> list[str]:
     """Return unmatched commands given a catalog response from list_show_commands.
 
@@ -283,32 +285,51 @@ def validate_show_commands_against_catalog(
     Args:
         requested: Commands the user wants to run.
         catalog: Raw response from Troubleshooting.list_show_commands.
+        allow_port_placeholder: Accept a literal ``{{port}}`` token. Only set
+            this when the caller substitutes it before execution (AOS-S).
 
     Returns:
         List of requested commands that did not match any catalog entry.
         Empty list means all commands are supported.
 
     """
-    supported: set[str] = set()
-
-    def _collect(obj: Any) -> None:
-        if isinstance(obj, str):
-            supported.add(" ".join(obj.lower().split()))
-        elif isinstance(obj, dict):
-            for v in obj.values():
-                _collect(v)
-        elif isinstance(obj, list):
-            for item in obj:
-                _collect(item)
-
-    _collect(catalog)
+    patterns = []
+    for tmpl in _catalog_strings(catalog):
+        parts = re.split(r"\{\{[^}]*\}\}", " ".join(tmpl.lower().split()))
+        rx = r"\S+".join(re.escape(p) for p in parts)
+        if len(parts) > 1 and not parts[-1]:
+            rx = rx[: -len(r"\S+")] + ".+"  # trailing placeholder: multi-word
+        patterns.append(re.compile(rx))
 
     unmatched = []
     for cmd in requested:
         normalised = " ".join(cmd.lower().split())
-        if normalised not in supported:
+        leftover = (
+            normalised.replace("{{port}}", "") if allow_port_placeholder else normalised
+        )
+        unsafe = re.search(r"[;|&\r\n]", cmd) or "{{" in leftover
+        if unsafe or not any(p.fullmatch(normalised) for p in patterns):
             unmatched.append(cmd)
     return unmatched
+
+
+def _catalog_strings(obj: Any) -> list[str]:
+    if isinstance(obj, str):
+        return [obj]
+    if isinstance(obj, dict):
+        obj = list(obj.values())
+    if isinstance(obj, list):
+        return [s for item in obj for s in _catalog_strings(item)]
+    return []
+
+
+def closest_catalog_commands(requested: list[str], catalog: Any) -> list[str]:
+    """Return up to 5 catalog entries closest to each requested command."""
+    strings = _catalog_strings(catalog)
+    found: list[str] = []
+    for cmd in requested:
+        found += difflib.get_close_matches(cmd, strings, n=5, cutoff=0.3)
+    return list(dict.fromkeys(found))
 
 
 async def fetch_device_interfaces(
